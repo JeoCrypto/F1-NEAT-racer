@@ -1,3 +1,4 @@
+
 # 🏎️ NEAT F1 Car AI — Teaching an AI to Drive with Python
 
 This project uses **NEAT (NeuroEvolution of Augmenting Topologies)** and **Pygame** to teach an AI how to drive a simple car around an **F1-style racetrack**.  
@@ -15,7 +16,8 @@ Each generation, cars are tested on the track, and their fitness is determined b
 The car’s **neural network inputs** are:
 - Vision ray distances (4–8 directions)
 - Car speed
-- Car angle  
+- Car angle
+- Relative position to next checkpoint
 
 ### Outputs
 The network outputs:
@@ -35,15 +37,14 @@ The AI is rewarded for staying on track and passing checkpoints, and penalized f
 | Moves backward (previous checkpoint) | −50 |
 | Each frame alive | −1 |
 
----
 
-## ⚙️ Configuration
-
-Example NEAT configuration (`config-feedforward.txt`):
-
-```ini
-[NEAT]
-fitness_criterion     = max
-fitness_threshold     = 50000
 pop_size              = 150
 reset_on_extinction   = False
+
+---
+
+## To play:
+
+- Go to game-only.py to try it yourself!
+- Go to main.py , scroll to the last lines and train the model first
+- Then when it's done, run load_play function to try out the AI!
