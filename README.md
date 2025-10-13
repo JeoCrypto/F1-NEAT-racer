@@ -1,5 +1,5 @@
 
-# 🏎️ NEAT F1 Car AI — Teaching an AI to Drive with Python
+# 🏎️ NEAT F1 Car AI
 
 This project uses **NEAT (NeuroEvolution of Augmenting Topologies)** and **Pygame** to teach an AI how to drive a simple car around an **F1-style racetrack**.  
 The AI learns steering and acceleration through evolution — no human driving data or supervision required.
