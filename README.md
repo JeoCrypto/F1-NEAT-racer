@@ -38,9 +38,6 @@ The AI is rewarded for staying on track and passing checkpoints, and penalized f
 | Each frame alive | −1 |
 
 
-pop_size              = 150
-reset_on_extinction   = False
-
 ---
 
 ## To play:
