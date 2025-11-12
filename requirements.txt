@@ -1,0 +1,6 @@
+pygame
+numpy
+Pillow
+neat-python
+pandas
+matplotlib
