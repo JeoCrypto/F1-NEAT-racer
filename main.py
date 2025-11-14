@@ -1,5 +1,6 @@
 import sys
 import time
+import warnings
 import pickle
 import pygame
 import pandas as pd
@@ -17,6 +18,51 @@ pygame.init()
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption("F1 RACE")
 clock = pygame.time.Clock()
+
+
+def _init_text_renderer(font_name: str = "Arial", font_size: int = 18) -> tuple[str | None, object | None]:
+    """
+    Initialize a text rendering backend. Prefer pygame.font, fall back to pygame.freetype.
+    """
+    try:
+        import pygame.font as pg_font  # pylint: disable=import-outside-toplevel
+
+        pg_font.init()
+        font = pg_font.SysFont(font_name, font_size)
+        return "font", font
+    except (ImportError, NotImplementedError):
+        pass
+
+    try:
+        import pygame.freetype as pg_freetype  # pylint: disable=import-outside-toplevel
+
+        pg_freetype.init()
+        font = pg_freetype.SysFont(font_name, font_size)
+        return "freetype", font
+    except (ImportError, NotImplementedError):
+        warnings.warn(
+            "Text overlay disabled: pygame font modules unavailable. "
+            "Install SDL_ttf / freetype to enable HUD text.",
+            RuntimeWarning,
+        )
+        return None, None
+
+
+_TEXT_BACKEND, _TEXT_FONT = _init_text_renderer()
+
+
+def draw_text(surface: pygame.Surface, text: str, position: tuple[int, int], color: tuple[int, int, int] = (0, 0, 0)) -> None:
+    """
+    Render text to the provided surface using whichever backend is available.
+    """
+    if _TEXT_BACKEND is None or _TEXT_FONT is None:
+        return
+
+    if _TEXT_BACKEND == "font":
+        text_surface = _TEXT_FONT.render(text, True, color)  # type: ignore[call-arg]
+        surface.blit(text_surface, position)
+    else:
+        _TEXT_FONT.render_to(surface, position, text, color)  # type: ignore[attr-defined]
 
 def find_midpoint(point1: tuple[int, int], point2: tuple[int, int]) -> tuple[int, int]:
     """Return the pixel-wise midpoint of two (x, y) points as integers."""
@@ -196,9 +242,7 @@ def load_play(filename: str) -> None:
         car.dist_to_checkpoint(checkpoints[next_cp_idx], screen)
 
         elapsed = time.time() - start_time
-        font = pygame.font.SysFont("Arial", 18)
-        time_surface = font.render(f"time: {elapsed:.2f}", True, (0, 0, 0))
-        screen.blit(time_surface, (10, 10))
+        draw_text(screen, f"time: {elapsed:.2f}", (10, 10))
 
         for cp in checkpoints:
             pygame.draw.line(screen, (0, 255, 0), cp[0], cp[1], 2)
