@@ -32,10 +32,31 @@ class Car:
         self.image: pygame.Surface = self.base_image
         self.rect: pygame.Rect = self.image.get_rect(center=(self.x, self.y))
 
-    def reset(self, last_checkpoint_midpoint: Sequence[float]) -> None:
+    def reset(
+        self,
+        last_checkpoint_midpoint: Sequence[float],
+        heading_target: Optional[Sequence[float]] = None,
+    ) -> None:
+        """
+        Reset the car onto the provided checkpoint midpoint and optionally orient it
+        toward the next checkpoint (heading_target).  If no heading target is given,
+        the previous heading is preserved.
+        """
         self.x, self.y = last_checkpoint_midpoint
-        dx = self.x - last_checkpoint_midpoint[0]
-        dy = self.y - last_checkpoint_midpoint[1]
+        dx: float
+        dy: float
+        if heading_target is not None:
+            dx = heading_target[0] - self.x
+            dy = heading_target[1] - self.y
+        else:
+            # Preserve current orientation if no heading information is available.
+            dx = math.cos(math.radians(90.0 - self.angle))
+            dy = math.sin(math.radians(90.0 - self.angle))
+
+        if dx == 0 and dy == 0:
+            # Default to "pointing up" if we still lack a direction vector.
+            dx, dy = 0.0, -1.0
+
         self.angle = (90.0 - math.degrees(math.atan2(dy, dx)))
         self.speed = 0.0
         self.image = pygame.transform.rotate(self.base_image, self.angle)
@@ -54,9 +75,10 @@ class Car:
     def check_off_track(
         self, bg_array: np.ndarray, target_color: tuple[int, int, int] = (255, 255, 255)
     ) -> bool:
-        # Checks the bounding box of the car for pixel off track
-        for x in range(self.rect.left, self.rect.right):
-            for y in range(self.rect.top, self.rect.bottom):
+        """Check if any part of the car's bounding box is on the off-track color (white)."""
+        height, width = bg_array.shape[:2]
+        for x in range(max(0, self.rect.left), min(width, self.rect.right)):
+            for y in range(max(0, self.rect.top), min(height, self.rect.bottom)):
                 if tuple(bg_array[y, x, :3]) == target_color:
                     return True
         return False

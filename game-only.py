@@ -10,7 +10,7 @@ FPS: int = 60
 
 pygame.init()
 screen: pygame.Surface = pygame.display.set_mode((WIDTH, HEIGHT))
-pygame.display.set_caption("F1 RACE")
+pygame.display.set_caption("Karting Race")
 clock: pygame.time.Clock = pygame.time.Clock()
 running: bool = True
 
@@ -24,21 +24,21 @@ def find_midpoint_line(checkpoint: tuple[tuple[int, int], tuple[int, int]]) -> t
     return ((x1 + x2) // 2, (y1 + y2) // 2)
 
 checkpoints: list[tuple[tuple[int, int], tuple[int, int]]] = [
-    ((9, 376), (93, 380)),
-    ((117, 290), (189, 345)),
-    ((112, 219), (195, 211)),
-    ((185, 123), (219, 212)),
-    ((255, 190), (313, 145)),
-    ((356, 232), (299, 307)),
-    ((594, 235), (659, 293)),
-    ((557, 201), (632, 173)),
-    ((581, 115), (629, 174)),
-    ((677, 120), (629, 174)),
-    ((727, 269), (792, 240)),
-    ((729, 474), (788, 536)),
-    ((645, 437), (675, 522)),
-    ((600, 520), (670, 578)),
-    ((327, 514), (324, 591)),
+    ((130, 530), (210, 510)),  # start/finish straight
+    ((125, 470), (195, 420)),
+    ((140, 360), (205, 300)),
+    ((210, 270), (275, 215)),
+    ((300, 190), (375, 155)),
+    ((410, 165), (495, 170)),
+    ((520, 210), (590, 260)),
+    ((575, 275), (645, 335)),
+    ((600, 330), (670, 410)),
+    ((600, 420), (650, 500)),
+    ((520, 500), (580, 560)),
+    ((420, 520), (500, 550)),
+    ((320, 520), (380, 545)),
+    ((230, 500), (300, 540)),
+    ((150, 485), (215, 525)),
 ]
 
 test_car: Car = Car(find_midpoint(checkpoints[0][0], checkpoints[0][1]))
@@ -57,7 +57,10 @@ while running:
     screen.blit(background_image, (0, 0))
 
     if test_car.check_off_track(bg_array):
-        test_car.reset(find_midpoint_line(checkpoints[current_checkpoint]))
+        reset_midpoint = find_midpoint_line(checkpoints[current_checkpoint])
+        next_cp_idx = (current_checkpoint + 1) % len(checkpoints)
+        next_midpoint = find_midpoint_line(checkpoints[next_cp_idx])
+        test_car.reset(reset_midpoint, heading_target=next_midpoint)
         print("Car reset due to off-track!")
 
     for event in pygame.event.get():
