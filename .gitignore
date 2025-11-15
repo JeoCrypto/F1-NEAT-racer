@@ -88,3 +88,9 @@ Desktop.ini
 # Other
 *.swp
 
+# Checkpoints
+checkpoints/
+
+# _pycache_
+__pycache__/
+

@@ -1,5 +1,5 @@
 
-# 🏎️ NEAT F1 Car AI
+# 🏎️ NEAT Karting Car AI
 
 This project uses **NEAT (NeuroEvolution of Augmenting Topologies)** and **Pygame** to teach an AI how to drive a simple car around an **F1-style racetrack**.  
 The AI learns steering and acceleration through evolution; no human driving data or supervision required. The track is based on Las Vegas 2025 circuit

@@ -6,8 +6,8 @@ from PIL import Image
 circuit = Image.open("circuit.png")
 bg_array = np.array(circuit)
 
-# Check starting position
-start_pos = (436, 364)
+# Check starting position (from main.py)
+start_pos = (404, 399)
 x, y = start_pos
 
 print(f"Starting position: {start_pos}")
@@ -42,8 +42,8 @@ if 0 <= x < bg_array.shape[1] and 0 <= y < bg_array.shape[0]:
 else:
     print("ERROR: Starting position is out of bounds!")
 
-# Check first checkpoint
-checkpoint_0 = ((250, 471), (249, 454))
+# Check first checkpoint (from main.py)
+checkpoint_0 = ((350, 421), (354, 435))
 mid_x = (checkpoint_0[0][0] + checkpoint_0[1][0]) // 2
 mid_y = (checkpoint_0[0][1] + checkpoint_0[1][1]) // 2
 print(f"\nFirst checkpoint midpoint: ({mid_x}, {mid_y})")

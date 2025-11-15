@@ -74,67 +74,57 @@ def find_midpoint_line(checkpoint: tuple[tuple[int, int], tuple[int, int]]) -> t
     return ((x1 + x2) // 2, (y1 + y2) // 2)
 
 checkpoints: list[tuple[tuple[int, int], tuple[int, int]]] = [
-    ((393, 376), (401, 391)),  # start/finish
-    ((298, 426), (297, 446)),
-    ((244, 450), (249, 473)),
-    ((210, 503), (208, 528)),
-    ((126, 496), (101, 502)),
-    ((56, 415), (37, 422)),
-    ((51, 384), (29, 393)),
-    ((62, 383), (77, 369)),
-    ((121, 428), (110, 444)),
-    ((149, 437), (159, 452)),
-    ((243, 393), (247, 409)),
-    ((263, 348), (254, 325)),
-    ((290, 319), (291, 337)),
-    ((330, 333), (336, 348)),
-    ((404, 312), (419, 322)),
-    ((455, 290), (466, 302)),
-    ((462, 271), (479, 276)),
-    ((441, 250), (438, 269)),
-    ((405, 275), (402, 286)),
-    ((380, 282), (369, 295)),
-    ((288, 281), (282, 291)),
-    ((240, 279), (230, 292)),
-    ((209, 307), (194, 306)),
-    ((213, 327), (200, 335)),
-    ((217, 348), (203, 358)),
-    ((219, 373), (204, 371)),
-    ((184, 374), (181, 386)),
-    ((150, 372), (148, 383)),
-    ((124, 338), (113, 350)),
-    ((120, 309), (102, 319)),
-    ((126, 281), (113, 277)),
-    ((158, 262), (137, 257)),
-    ((314, 181), (294, 171)),
-    ((260, 209), (234, 204)),
-    ((224, 229), (194, 227)),
-    ((384, 141), (361, 138)),
-    ((423, 115), (398, 110)),
-    ((455, 98), (434, 92)),
-    ((489, 90), (469, 73)),
-    ((501, 98), (506, 79)),
-    ((517, 114), (529, 108)),
-    ((526, 138), (542, 130)),
-    ((508, 156), (504, 172)),
-    ((477, 137), (475, 156)),
-    ((452, 163), (436, 162)),
-    ((465, 203), (452, 210)),
-    ((481, 204), (487, 219)),
-    ((515, 196), (515, 210)),
-    ((545, 192), (543, 203)),
-    ((579, 203), (572, 211)),
-    ((597, 239), (579, 251)),
-    ((594, 269), (567, 274)),
-    ((580, 288), (539, 296)),
-    ((544, 311), (491, 320)),
-    ((490, 342), (454, 341)),
-    ((353, 399), (339, 423)),
+    ((350, 421), (354, 435)),  # 0 - start/finish
+    ((245, 473), (250, 491)),  # 1
+    ((214, 524), (216, 544)),  # 2
+    ((134, 522), (127, 534)),  # 3
+    ((81, 481), (76, 494)),  # 4
+    ((45, 401), (29, 395)),  # 5
+    ((71, 382), (70, 402)),  # 6
+    ((96, 416), (89, 430)),  # 7
+    ((120, 450), (117, 462)),  # 8
+    ((167, 453), (165, 465)),  # 9
+    ((240, 418), (261, 408)),  # 10
+    ((251, 357), (265, 356)),  # 11
+    ((290, 333), (291, 348)),  # 12
+    ((320, 345), (327, 361)),  # 13
+    ((358, 345), (367, 353)),  # 14
+    ((463, 309), (473, 315)),  # 15
+    ((473, 280), (487, 278)),  # 16
+    ((451, 265), (452, 277)),  # 17
+    ((414, 288), (403, 303)),  # 18
+    ((304, 293), (292, 305)),  # 19
+    ((251, 292), (237, 304)),  # 20
+    ((212, 332), (201, 340)),  # 21
+    ((220, 376), (207, 385)),  # 22
+    ((199, 405), (169, 387)),  # 23
+    ((146, 388), (120, 380)),  # 24
+    ((118, 340), (103, 324)),  # 25
+    ((140, 270), (168, 265)),  # 26
+    ((239, 214), (265, 213)),  # 27
+    ((294, 183), (317, 187)),  # 28
+    ((379, 141), (400, 137)),  # 29
+    ((417, 113), (453, 110)),  # 30
+    ((465, 89), (501, 91)),  # 31
+    ((531, 94), (532, 116)),  # 32
+    ((554, 132), (541, 151)),  # 33
+    ((512, 164), (502, 169)),  # 34
+    ((488, 146), (479, 157)),  # 35
+    ((463, 162), (450, 162)),  # 36
+    ((466, 198), (459, 208)),  # 37
+    ((543, 206), (535, 219)),  # 38
+    ((602, 218), (593, 229)),  # 39
+    ((614, 255), (599, 265)),  # 40
+    ((603, 293), (578, 299)),  # 41
+    ((573, 315), (543, 319)),  # 42
+    ((528, 341), (504, 339)),  # 43
+    ((494, 360), (472, 357)),  # 44
 ]
 
-# Starting position - on the grid before the start/finish line
-STARTING_POSITION = (422, 369)  # Grid position set via checkpoint helper
-STARTING_ANGLE = 241.0  # Calculated angle pointing toward checkpoint 0
+# Starting position - CLOSER to CP0 for easier initial learning
+# Once AI learns to pass CP0, can gradually move this back
+STARTING_POSITION = (375, 410)  # Much closer to CP0 (~30px away instead of 60px)
+STARTING_ANGLE = -50  # Point more directly at checkpoint 0
 
 try:
     pil_image = Image.open("circuit.png")
@@ -190,8 +180,10 @@ def eval_genomes(
         fitness = 0
         running = True
         curr_cp = 0
-        max_frames = 1000
+        max_frames = 400  # Reduced from 1000 to force progression
         frames = 0
+        last_distance = None  # Track distance to checkpoint
+        starting_distance = None  # Track initial distance to measure overall progress
 
         while running and frames < max_frames:
             frames += 1
@@ -202,28 +194,49 @@ def eval_genomes(
             acceleration: float = output[1] * 5
             car.update(steering, acceleration)
 
-            # Give car a few frames to start moving before checking off-track
-            if frames > 5 and car.check_off_track(bg_array):
-                fitness -= 1000
-                running = False
+            # TEMPORARILY DISABLED: Allow off-track exploration for initial learning
+            # Once AI learns checkpoints, re-enable this penalty
+            # if frames > 5 and car.check_off_track(bg_array):
+            #     fitness -= 1000
+            #     running = False
+
+            # Calculate distance to next checkpoint for progress reward
+            cp_mid_x = (checkpoints[next_cp][0][0] + checkpoints[next_cp][1][0]) / 2
+            cp_mid_y = (checkpoints[next_cp][0][1] + checkpoints[next_cp][1][1]) / 2
+            current_distance = np.sqrt((car.x - cp_mid_x)**2 + (car.y - cp_mid_y)**2)
+
+            # Initialize starting distance on first frame
+            if starting_distance is None:
+                starting_distance = current_distance
+
+            # Very strong reward for getting closer to checkpoint
+            if last_distance is not None:
+                distance_improvement = last_distance - current_distance
+                fitness += distance_improvement * 5.0  # Massively increased
+
+            # Additional reward based on proximity to checkpoint (inverse distance)
+            # Being close to checkpoint is good even if not moving toward it
+            proximity_reward = (200 - min(current_distance, 200)) / 10.0
+            fitness += proximity_reward
+
+            last_distance = current_distance
 
             prev_cp = (curr_cp - 1) % len(checkpoints)
-            # Passed next checkpoint
-            if car.get_collide_checkpoint(checkpoints[next_cp]):
+            # Passed next checkpoint - TEMPORARILY using larger threshold for initial learning
+            if car.get_collide_checkpoint(checkpoints[next_cp], threshold=35.0):  # Increased from 20 to 35
                 curr_cp = next_cp
                 fitness += 500
-                frames = 0
+                frames = 0  # Reset frame counter for this checkpoint
+                last_distance = None  # Reset distance tracking
+                starting_distance = None  # Reset starting distance
 
             # Penalty for going back
-            if car.get_collide_checkpoint(checkpoints[prev_cp]):
+            if car.get_collide_checkpoint(checkpoints[prev_cp], threshold=35.0):
                 curr_cp = prev_cp
                 fitness -= 50
 
-            # Reward for staying on track (small positive reward per frame)
-            fitness += 0.5
-
-            # Small reward for moving forward (based on speed)
-            fitness += abs(car.speed) * 0.1
+            # Small reward for forward speed
+            fitness += max(0, car.speed) * 0.2
 
             if VISUALIZE:
                 screen.blit(background_image, (0, 0))
