@@ -50,13 +50,16 @@ if str(ROOT) not in sys.path:
 # Modal CLI (`modal run file.py::function --args ...`) for all remote operations.
 
 
-def modal_run(function: str, **kwargs) -> subprocess.CompletedProcess:
+def modal_run(function: str, detach: bool = False, **kwargs) -> subprocess.CompletedProcess:
     """Invoke a remote Modal function via CLI and return CompletedProcess.
 
     Boolean kwargs become flags; other values produce --key value pairs.
     Underscores in keys are converted to hyphens to match argparse dests.
     """
-    cmd = [sys.executable, "-m", "modal", "run", f"train_ppo_modal.py::{function}"]
+    cmd = [sys.executable, "-m", "modal", "run"]
+    if detach:
+        cmd.append("--detach")
+    cmd.append(f"train_ppo_modal.py::{function}")
     for k, v in kwargs.items():
         flag = f"--{k.replace('_', '-')}"
         if isinstance(v, bool):
@@ -224,6 +227,7 @@ def cmd_train(args: argparse.Namespace) -> None:
     fn_name = "remote_train_gpu" if args.gpu else "remote_train"
     result = modal_run(
         fn_name,
+        detach=args.detach,
         timesteps=args.timesteps,
         save_name=args.save_name,
         vector_envs=args.vector_envs,
@@ -238,6 +242,15 @@ def cmd_train(args: argparse.Namespace) -> None:
         print("TRAIN FAILED:\n" + result.stderr.strip())
         return
     print(result.stdout.strip())
+    
+    # Skip downloads if detached (training still running remotely)
+    if args.detach:
+        print("\nTraining launched in detached mode. Monitor progress at Modal dashboard.")
+        print("When complete, download artifacts manually with:")
+        print(f"  python tools/track_cli.py fetch --path {args.save_name}.zip --out {args.save_name}.zip")
+        print(f"  python tools/track_cli.py fetch --path {args.save_name}.meta.json --out {args.save_name}.meta.json")
+        return
+    
     base_name = args.save_name
     if args.download_model:
         # Binary fetch via modal run and redirect not robust; instruct user if failure
@@ -396,6 +409,7 @@ def build_parser() -> argparse.ArgumentParser:
     tp.add_argument("--prune-interval", type=int, help="Keep checkpoints at interval multiples")
     tp.add_argument("--download-model", action="store_true", help="Auto-download final model after training")
     tp.add_argument("--download-meta", action="store_true", help="Auto-download metadata after training")
+    tp.add_argument("--detach", action="store_true", help="Run in detached mode (keeps running after client disconnect)")
     tp.set_defaults(func=cmd_train)
 
     # evaluate

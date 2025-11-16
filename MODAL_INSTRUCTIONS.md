@@ -165,6 +165,35 @@ python tools/track_cli.py train \
 **GPU Fallback Order:**
 The system tries GPUs in this order: L40S → A100 → A10G → V100 → T4
 
+### Detached Training (Run in Background)
+
+**Keep training running even after closing your terminal or computer:**
+```powershell
+python tools/track_cli.py train \
+  --track-name circuit.png \
+  --timesteps 10000000 \
+  --save-name ppo_10m_run \
+  --gpu \
+  --vector-envs 16 \
+  --checkpoint-freq 500000 \
+  --tensorboard \
+  --detach
+```
+
+**Important notes:**
+- `--detach`: Training continues on Modal even if you disconnect
+- Perfect for overnight/long training runs
+- Auto-download flags (`--download-model`, `--download-meta`) are ignored in detached mode
+- Monitor progress via Modal dashboard (URL shown when training starts)
+- Download artifacts manually after completion
+
+**Manually download after detached training:**
+```powershell
+# Check if training is complete via Modal dashboard, then:
+python tools/track_cli.py fetch --path ppo_10m_run.zip --out ppo_10m_run.zip
+python tools/track_cli.py fetch --path ppo_10m_run.meta.json --out ppo_10m_run.meta.json
+```
+
 ### Resume Training (Continuation)
 
 **Continue from a previous checkpoint:**
@@ -200,7 +229,7 @@ python tools/track_cli.py train \
   --vector-envs 16 \
   --checkpoint-freq 250000 \
   --tensorboard \
-  --download-model
+  --detach
 ```
 
 **Phase 2: Refinement (continue for 4M more)**
@@ -214,7 +243,7 @@ python tools/track_cli.py train \
   --vector-envs 16 \
   --checkpoint-freq 500000 \
   --tensorboard \
-  --download-model
+  --detach
 ```
 
 **Phase 3: Mastery (continue for 5M more = 10M total)**
@@ -228,7 +257,14 @@ python tools/track_cli.py train \
   --vector-envs 16 \
   --checkpoint-freq 1000000 \
   --tensorboard \
-  --download-model
+  --detach
+```
+
+**Download after each phase completes:**
+```powershell
+python tools/track_cli.py fetch --path ppo_phase1.zip --out ppo_phase1.zip
+python tools/track_cli.py fetch --path ppo_phase2.zip --out ppo_phase2.zip
+python tools/track_cli.py fetch --path ppo_phase3_final.zip --out ppo_phase3_final.zip
 ```
 
 ### Training Flags Reference
@@ -247,6 +283,7 @@ python tools/track_cli.py train \
 | `--prune-interval` | Also keep interval checkpoints | None |
 | `--download-model` | Auto-download final model | Off |
 | `--download-meta` | Auto-download metadata JSON | Off |
+| `--detach` | Run in background (survives disconnect) | Off |
 
 ### Checkpoint Pruning
 
@@ -462,12 +499,18 @@ python tools/track_cli.py fetch \
 - **Cause**: CLI files changed, triggering rebuild
 - **Solution**: Already fixed in current version (only `car.py` and `racing_env.py` are bundled)
 
-**5. Training very slow / poor GPU utilization**
+**6. "Training interrupted by user" or "local client disconnected"**
+- **Cause**: Terminal closed or computer went to sleep during training
+- **Solution**: Use `--detach` flag for long training runs:
+  ```powershell
+  python tools/track_cli.py train --track-name circuit.png --timesteps 10000000 --save-name ppo_10m --gpu --detach
+  ```
+- **Recovery**: Training continues on Modal; download artifacts when complete via Modal dashboard or fetch command
 - **Expected**: PPO with MlpPolicy is CPU-bound for small networks
 - **Impact**: GPU helps with larger batch sizes but won't match CNN performance
 - **Mitigation**: Increase `--vector-envs` to 16-32 on GPU
 
-**6. "charmap codec can't encode character"**
+**8. "charmap codec can't encode character"**
 - **Cause**: Windows encoding issue with Modal CLI output
 - **Solution**: Already fixed (UTF-8 enforcement in subprocess calls)
 
@@ -536,7 +579,7 @@ python tools/track_cli.py sync --dir tracks
 # 3. Validate
 python tools/track_cli.py validate --track circuit.png
 
-# 4. Train (10M steps for full mastery)
+# 4. Train (10M steps for full mastery, detached mode for overnight runs)
 python tools/track_cli.py train \
   --track-name circuit.png \
   --timesteps 10000000 \
@@ -547,10 +590,13 @@ python tools/track_cli.py train \
   --tensorboard \
   --prune-keep 5 \
   --prune-interval 1000000 \
-  --download-model \
-  --download-meta
+  --detach
 
-# 5. Evaluate
+# 5. Download artifacts after training completes (check Modal dashboard)
+python tools/track_cli.py fetch --path ppo_final.zip --out ppo_final.zip
+python tools/track_cli.py fetch --path ppo_final.meta.json --out ppo_final.meta.json
+
+# 6. Evaluate
 python tools/track_cli.py evaluate --model ppo_final.zip --episodes 10
 
 # 6. Test locally
