@@ -1,0 +1,17 @@
+{
+  "save_name": "ppo_ext_run",
+  "final_model": "/root/outputs/ppo_ext_run.zip",
+  "timesteps": 1000000,
+  "vector_envs": 16,
+  "checkpoint_freq": 250000,
+  "tensorboard": true,
+  "resume_from": null,
+  "gpu_type": null,
+  "prune_keep": null,
+  "prune_interval": null,
+  "pruned_count": 0,
+  "kept_count": 0,
+  "kept_files": [],
+  "track_name": "circuit.png",
+  "timestamp_utc": "2025-11-16T01:26:42.143430Z"
+}

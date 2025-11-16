@@ -284,15 +284,41 @@ def cmd_evaluate(args: argparse.Namespace) -> None:
 
 
 def cmd_fetch(args: argparse.Namespace) -> None:
-    # Use raw binary stdout
-    cmd = ["modal", "run", "train_ppo_modal.py::remote_fetch_artifact", "--path", args.path]
-    fetch = subprocess.run(cmd, capture_output=True)
-    if fetch.returncode != 0:
-        print("FETCH FAILED:\n" + fetch.stderr.decode(errors='ignore'))
+    """Fetch artifact using Modal's volume get command."""
+    # Modal has a built-in command for downloading from volumes
+    # modal volume get <volume-name> <remote-path> <local-path>
+    
+    print(f"Fetching {args.path} from volume...")
+    
+    cmd = [
+        sys.executable, "-m", "modal", "volume", "get",
+        "f1-ppo-checkpoints",  # volume name
+        args.path,  # remote path (relative to volume root)
+        args.out,  # local output path
+    ]
+    
+    if args.force:
+        cmd.append("--force")
+    
+    env = os.environ.copy()
+    env["PYTHONIOENCODING"] = "utf-8"
+    env["PYTHONUTF8"] = "1"
+    
+    result = subprocess.run(cmd, capture_output=True, env=env)
+    
+    if result.returncode != 0:
+        stderr_text = result.stderr.decode('utf-8', errors='replace')
+        print("FETCH FAILED:\n" + stderr_text)
         return
+    
+    # Check if file was created
     out_path = Path(args.out)
-    out_path.write_bytes(fetch.stdout)
-    print(f"Fetched {args.path} -> {out_path} ({len(fetch.stdout)} bytes)")
+    if out_path.exists():
+        size = out_path.stat().st_size
+        print(f"✓ Downloaded {args.path} -> {out_path} ({size:,} bytes)")
+    else:
+        stdout_text = result.stdout.decode('utf-8', errors='replace')
+        print("Download may have failed. Output:\n" + stdout_text)
 
 
 def cmd_validate(args: argparse.Namespace) -> None:
@@ -423,6 +449,7 @@ def build_parser() -> argparse.ArgumentParser:
     fp = sub.add_parser("fetch", help="Fetch an artifact")
     fp.add_argument("--path", required=True, help="Artifact relative path under outputs volume")
     fp.add_argument("--out", required=True, help="Local output path")
+    fp.add_argument("--force", action="store_true", help="Overwrite existing file")
     fp.set_defaults(func=cmd_fetch)
 
     # export
