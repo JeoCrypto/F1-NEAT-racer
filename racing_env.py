@@ -11,75 +11,73 @@ import pygame
 from PIL import Image
 from car import Car
 from typing import Tuple, Optional
+import os
+from pathlib import Path
+
+
+TRACKS_JSON_CANDIDATES = [
+    os.environ.get("TRACKS_JSON"),
+    "/root/tracks/checkpoints.json",  # remote volume path
+    str(Path(__file__).resolve().parents[1] / "tracks" / "checkpoints.json"),  # repo local
+    str(Path.cwd() / "tracks" / "checkpoints.json"),
+]
 
 
 class RacingEnv(gym.Env):
-    """Custom Gymnasium Environment for Karting Racing."""
+    """Custom Gymnasium Environment for Karting Racing.
+
+    Parameters:
+        render_mode: Optional render mode ("human" or None).
+        max_steps: Episode step cap.
+        track_name: Filename of track PNG (default 'circuit.png').
+    """
 
     metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 60}
 
-    def __init__(self, render_mode: Optional[str] = None, max_steps: int = 1000):
+    def __init__(self, render_mode: Optional[str] = None, max_steps: int = 1000, track_name: str = "circuit.png"):
         super().__init__()
 
         self.render_mode = render_mode
         self.max_steps = max_steps
 
-        # Load circuit
-        self.circuit = Image.open("circuit.png")
-        self.bg_array = np.array(self.circuit)
-
-        # Checkpoints (from main.py)
-        self.checkpoints = [
-            ((350, 421), (354, 435)),  # 0
-            ((245, 473), (250, 491)),  # 1
-            ((214, 524), (216, 544)),  # 2
-            ((134, 522), (127, 534)),  # 3
-            ((81, 481), (76, 494)),  # 4
-            ((45, 401), (29, 395)),  # 5
-            ((71, 382), (70, 402)),  # 6
-            ((96, 416), (89, 430)),  # 7
-            ((120, 450), (117, 462)),  # 8
-            ((167, 453), (165, 465)),  # 9
-            ((240, 418), (261, 408)),  # 10
-            ((251, 357), (265, 356)),  # 11
-            ((290, 333), (291, 348)),  # 12
-            ((320, 345), (327, 361)),  # 13
-            ((358, 345), (367, 353)),  # 14
-            ((463, 309), (473, 315)),  # 15
-            ((473, 280), (487, 278)),  # 16
-            ((451, 265), (452, 277)),  # 17
-            ((414, 288), (403, 303)),  # 18
-            ((304, 293), (292, 305)),  # 19
-            ((251, 292), (237, 304)),  # 20
-            ((212, 332), (201, 340)),  # 21
-            ((220, 376), (207, 385)),  # 22
-            ((199, 405), (169, 387)),  # 23
-            ((146, 388), (120, 380)),  # 24
-            ((118, 340), (103, 324)),  # 25
-            ((140, 270), (168, 265)),  # 26
-            ((239, 214), (265, 213)),  # 27
-            ((294, 183), (317, 187)),  # 28
-            ((379, 141), (400, 137)),  # 29
-            ((417, 113), (453, 110)),  # 30
-            ((465, 89), (501, 91)),  # 31
-            ((531, 94), (532, 116)),  # 32
-            ((554, 132), (541, 151)),  # 33
-            ((512, 164), (502, 169)),  # 34
-            ((488, 146), (479, 157)),  # 35
-            ((463, 162), (450, 162)),  # 36
-            ((466, 198), (459, 208)),  # 37
-            ((543, 206), (535, 219)),  # 38
-            ((602, 218), (593, 229)),  # 39
-            ((614, 255), (599, 265)),  # 40
-            ((603, 293), (578, 299)),  # 41
-            ((573, 315), (543, 319)),  # 42
-            ((528, 341), (504, 339)),  # 43
-            ((494, 360), (472, 357)),  # 44
+        # Resolve checkpoints metadata JSON
+        import json
+        checkpoints_path = None
+        for cand in TRACKS_JSON_CANDIDATES:
+            if cand and Path(cand).exists():
+                checkpoints_path = Path(cand)
+                break
+        if checkpoints_path is None:
+            raise FileNotFoundError("No checkpoints.json found in expected locations. Set TRACKS_JSON or create tracks/checkpoints.json.")
+        with open(checkpoints_path, "r", encoding="utf-8") as f:
+            meta = json.load(f)
+        env_override = os.environ.get("TRACK_IMAGE")
+        chosen = env_override if env_override else track_name
+        if chosen not in meta:
+            raise KeyError(f"Track '{chosen}' missing in checkpoints.json. Add entry before use.")
+        track_meta = meta[chosen]
+        # Resolve track image path (prefer remote volume /root/tracks)
+        candidate_paths = [
+            Path("/root/tracks") / chosen,
+            Path(__file__).resolve().parents[1] / chosen,
+            Path.cwd() / chosen,
         ]
+        chosen_img = None
+        for p in candidate_paths:
+            if p.exists():
+                chosen_img = p
+                break
+        if chosen_img is None:
+            raise FileNotFoundError(f"Track image file '{chosen}' not found in volume or repo.")
+        self.circuit = Image.open(chosen_img)
+        self.bg_array = np.array(self.circuit)
+        self.track_name = chosen
+        self.checkpoints = track_meta["checkpoints"]
+        self.starting_position = tuple(track_meta.get("start_position", [375, 410]))
+        self.starting_angle = float(track_meta.get("start_angle", 240.8))
 
-        # Starting position - use the easier one
-        self.starting_position = (375, 410)
-        self.starting_angle = 240.8  # Facing CP0 directly
+
+        # Starting position already set from metadata above
 
         # Define action space: [steering, acceleration]
         # Steering: -1 to 1, Acceleration: -1 to 1

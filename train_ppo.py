@@ -14,14 +14,14 @@ from stable_baselines3.common.vec_env import DummyVecEnv
 from racing_env import RacingEnv
 
 
-def make_env():
-    """Create and wrap the environment."""
-    env = RacingEnv(render_mode=None, max_steps=1000)
+def make_env(track: str):
+    """Create and wrap the environment for the specified track."""
+    env = RacingEnv(render_mode=None, max_steps=1000, track_name=track)
     env = Monitor(env)  # Wrap with Monitor for logging
     return env
 
 
-def train(total_timesteps: int, save_path: str = "ppo_racing", visualize: bool = False):
+def train(total_timesteps: int, save_path: str = "ppo_racing", visualize: bool = False, track: str = "circuit.png"):
     """Train the PPO agent."""
 
     print("=" * 60)
@@ -29,16 +29,17 @@ def train(total_timesteps: int, save_path: str = "ppo_racing", visualize: bool =
     print("=" * 60)
     print(f"Total timesteps: {total_timesteps:,}")
     print(f"Save path: {save_path}")
+    print(f"Track: {track}")
     print()
 
     # Create environment
     if visualize:
         # Single environment with rendering
-        env = RacingEnv(render_mode="human", max_steps=1000)
+        env = RacingEnv(render_mode="human", max_steps=1000, track_name=track)
         env = Monitor(env)
     else:
         # Vectorized environment for faster training
-        env = DummyVecEnv([make_env for _ in range(4)])  # 4 parallel environments
+        env = DummyVecEnv([lambda: make_env(track) for _ in range(4)])  # 4 parallel environments
 
     # Create PPO model
     print("Creating PPO model...")
@@ -114,11 +115,18 @@ if __name__ == "__main__":
         action="store_true",
         help="Show visualization during training (slower)"
     )
+    parser.add_argument(
+        "--track",
+        type=str,
+        default="circuit.png",
+        help="Track PNG filename (default: circuit.png)"
+    )
 
     args = parser.parse_args()
 
     train(
         total_timesteps=args.timesteps,
         save_path=args.save,
-        visualize=args.visualize
+        visualize=args.visualize,
+        track=args.track
     )
