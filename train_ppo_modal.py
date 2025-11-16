@@ -71,6 +71,7 @@ BASE_PACKAGES = [
     "matplotlib>=3.7.0",
     "pillow>=10.0.0",
     "pygame>=2.6.0",
+    "tensorboard>=2.14.0",
 ]
 
 GPU_FALLBACK_ORDER = ["L40S", "A100", "A10G", "V100", "T4"]
@@ -83,7 +84,9 @@ image = (
         # Install all base packages with uv into system site-packages
         f"~/.local/bin/uv pip install --system {' '.join(BASE_PACKAGES)}"
     )
-    .add_local_dir(Path('.').resolve(), remote_path=REPO_ROOT)
+    # Only add required source dependencies to avoid rebuild errors if tools/ changes
+    .add_local_file(Path("racing_env.py"), remote_path=f"{REPO_ROOT}/racing_env.py")
+    .add_local_file(Path("car.py"), remote_path=f"{REPO_ROOT}/car.py")
 )
 
 app = modal.App(APP_NAME)

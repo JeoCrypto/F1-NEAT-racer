@@ -56,7 +56,7 @@ def modal_run(function: str, **kwargs) -> subprocess.CompletedProcess:
     Boolean kwargs become flags; other values produce --key value pairs.
     Underscores in keys are converted to hyphens to match argparse dests.
     """
-    cmd = ["modal", "run", f"train_ppo_modal.py::{function}"]
+    cmd = [sys.executable, "-m", "modal", "run", f"train_ppo_modal.py::{function}"]
     for k, v in kwargs.items():
         flag = f"--{k.replace('_', '-')}"
         if isinstance(v, bool):
@@ -160,45 +160,64 @@ def cmd_meta(args: argparse.Namespace) -> None:
 
 
 def cmd_sync(args: argparse.Namespace) -> None:
+    """Sync tracks by creating a temporary Modal function with local tracks embedded."""
     dir_path = Path(args.dir)
     checkpoints_path = dir_path / "checkpoints.json"
     if not checkpoints_path.exists():
         raise FileNotFoundError(f"Local checkpoints.json not found at {checkpoints_path}")
-    meta = load_checkpoints_json(checkpoints_path)
-    existing = modal_run("remote_list_tracks")
-    existing_remote = set()
-    if existing.returncode == 0:
-        try:
-            existing_remote = set(json.loads(existing.stdout.strip()))
-        except Exception:
-            pass
+    
+    # Create inline helper with tracks baked into image
+    import tempfile
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False, encoding='utf-8') as tf:
+        abs_tracks = str(dir_path.resolve())
+        helper_code = f'''import modal
+from pathlib import Path
+
+app = modal.App("track-sync")
+tracks_vol = modal.Volume.from_name("f1-ppo-tracks", create_if_missing=True)
+
+# Embed local tracks directory into image
+image = modal.Image.debian_slim(python_version="3.11").add_local_dir(
+    Path(r"{abs_tracks}"),
+    remote_path="/embedded_tracks"
+)
+
+@app.function(image=image, volumes={{"/root/tracks": tracks_vol}}, timeout=600)
+def do_sync():
+    import shutil
+    from pathlib import Path
+    src = Path("/embedded_tracks")
+    dst = Path("/root/tracks")
+    dst.mkdir(parents=True, exist_ok=True)
     uploaded = []
-    for track_name, entry in meta.items():
-        png_path = dir_path / track_name
-        if not png_path.exists():
-            print(f"WARNING: PNG for {track_name} missing; skipping")
-            continue
-        if (not args.force) and track_name in existing_remote:
-            print(f"Skipping {track_name}; already present (use --force to overwrite)")
-            continue
-        image_b64 = encode_png_base64(png_path)
-        cps = entry["checkpoints"]
-        start_position = ",".join(str(x) for x in entry.get("start_position", [375, 410]))
-        start_angle = entry.get("start_angle", 240.8)
-        r = modal_run(
-            "remote_upload_track",
-            track_name=track_name,
-            image_base64=image_b64,
-            checkpoints_json=json.dumps(cps),
-            start_position=start_position,
-            start_angle=start_angle,
+    for item in src.iterdir():
+        if item.is_file():
+            shutil.copy(item, dst / item.name)
+            uploaded.append(item.name)
+    tracks_vol.commit()
+    return uploaded
+'''
+        tf.write(helper_code)
+        temp_script = tf.name
+    
+    try:
+        env = os.environ.copy()
+        env["PYTHONIOENCODING"] = "utf-8"
+        env["PYTHONUTF8"] = "1"
+        result = subprocess.run(
+            [sys.executable, "-m", "modal", "run", temp_script + "::do_sync"],
+            capture_output=True,
+            env=env,
         )
-        if r.returncode != 0:
-            print(f"FAILED upload {track_name}: {r.stderr.strip()}")
-            continue
-        uploaded.append(track_name)
-        print(f"Uploaded {track_name}")
-    print(f"Sync complete. Uploaded: {uploaded}")
+        if result.returncode != 0:
+            stderr_text = result.stderr.decode('utf-8', errors='replace')
+            print(f"SYNC FAILED:\\n{stderr_text}")
+        else:
+            stdout_text = result.stdout.decode('utf-8', errors='replace')
+            print(stdout_text)
+            print("Sync complete!")
+    finally:
+        Path(temp_script).unlink(missing_ok=True)
 
 
 def cmd_train(args: argparse.Namespace) -> None:
