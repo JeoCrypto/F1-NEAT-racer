@@ -278,7 +278,7 @@ def remote_train(
 @app.function(
     image=gpu_image,
     gpu="any",
-    timeout=60 * 60 * 8,
+    timeout=60 * 60 * 24,  # 24 hours for long training runs
     volumes={"/root/outputs": volume, "/root/tracks": tracks_volume},
 )
 def remote_train_gpu(

@@ -50,16 +50,22 @@ if str(ROOT) not in sys.path:
 # Modal CLI (`modal run file.py::function --args ...`) for all remote operations.
 
 
-def modal_run(function: str, detach: bool = False, **kwargs) -> subprocess.CompletedProcess:
+def modal_run(function: str, detach: bool = False, module: str = "train_ppo_modal.py", **kwargs) -> subprocess.CompletedProcess:
     """Invoke a remote Modal function via CLI and return CompletedProcess.
 
     Boolean kwargs become flags; other values produce --key value pairs.
     Underscores in keys are converted to hyphens to match argparse dests.
+    
+    Args:
+        function: Function name to call
+        detach: Run in detached mode
+        module: Modal module file (e.g., train_ppo_modal.py or train_ppo_vision_modal.py)
+        **kwargs: Function parameters
     """
     cmd = [sys.executable, "-m", "modal", "run"]
     if detach:
         cmd.append("--detach")
-    cmd.append(f"train_ppo_modal.py::{function}")
+    cmd.append(f"{module}::{function}")
     for k, v in kwargs.items():
         flag = f"--{k.replace('_', '-')}"
         if isinstance(v, bool):
@@ -224,20 +230,45 @@ def do_sync():
 
 
 def cmd_train(args: argparse.Namespace) -> None:
-    fn_name = "remote_train_gpu" if args.gpu else "remote_train"
-    result = modal_run(
-        fn_name,
-        detach=args.detach,
-        timesteps=args.timesteps,
-        save_name=args.save_name,
-        vector_envs=args.vector_envs,
-        checkpoint_freq=args.checkpoint_freq,
-        tensorboard=args.tensorboard,
-        resume_from=args.resume_from,
-        prune_keep=args.prune_keep,
-        prune_interval=args.prune_interval,
-        track_name=args.track_name,
-    )
+    # Select function based on mode (vision vs classic) and compute (GPU vs CPU)
+    if args.vision:
+        # Vision-based training always uses GPU
+        fn_name = "remote_train_vision_gpu"
+        module = "train_ppo_vision_modal.py"
+        
+        # Vision-specific parameters with defaults
+        kwargs = {
+            "track_name": args.track_name,
+            "timesteps": args.timesteps,
+            "save_name": args.save_name,
+            "resume_from": args.resume_from,
+            "vector_envs": args.vector_envs,
+            "learning_rate": args.learning_rate if args.learning_rate else 1e-4,
+            "batch_size": args.batch_size if args.batch_size else 256,
+            "checkpoint_freq": args.checkpoint_freq,
+            "features_dim": args.features_dim if args.features_dim else 512,
+            "use_grayscale": args.grayscale,
+            "frame_stack": args.frame_stack if args.frame_stack else 1,
+            "tensorboard": args.tensorboard,
+        }
+    else:
+        # Classic MLP training
+        fn_name = "remote_train_gpu" if args.gpu else "remote_train"
+        module = "train_ppo_modal.py"
+        
+        kwargs = {
+            "timesteps": args.timesteps,
+            "save_name": args.save_name,
+            "vector_envs": args.vector_envs,
+            "checkpoint_freq": args.checkpoint_freq,
+            "tensorboard": args.tensorboard,
+            "resume_from": args.resume_from,
+            "prune_keep": args.prune_keep,
+            "prune_interval": args.prune_interval,
+            "track_name": args.track_name,
+        }
+    
+    result = modal_run(fn_name, detach=args.detach, module=module, **kwargs)
     if result.returncode != 0:
         print("TRAIN FAILED:\n" + result.stderr.strip())
         return
@@ -430,12 +461,20 @@ def build_parser() -> argparse.ArgumentParser:
     tp.add_argument("--checkpoint-freq", type=int, default=100000, help="Checkpoint frequency")
     tp.add_argument("--tensorboard", action="store_true", help="Enable tensorboard logs")
     tp.add_argument("--resume-from", help="Resume from existing model.zip")
-    tp.add_argument("--gpu", action="store_true", help="Use GPU training")
-    tp.add_argument("--prune-keep", type=int, help="Keep latest N checkpoints")
-    tp.add_argument("--prune-interval", type=int, help="Keep checkpoints at interval multiples")
+    tp.add_argument("--gpu", action="store_true", help="Use GPU training (for classic MLP mode)")
+    tp.add_argument("--prune-keep", type=int, help="Keep latest N checkpoints (classic mode)")
+    tp.add_argument("--prune-interval", type=int, help="Keep checkpoints at interval multiples (classic mode)")
     tp.add_argument("--download-model", action="store_true", help="Auto-download final model after training")
     tp.add_argument("--download-meta", action="store_true", help="Auto-download metadata after training")
     tp.add_argument("--detach", action="store_true", help="Run in detached mode (keeps running after client disconnect)")
+    
+    # Vision-specific arguments
+    tp.add_argument("--vision", action="store_true", help="Use vision-based CNN policy (hybrid vision + telemetry)")
+    tp.add_argument("--learning-rate", type=float, help="Learning rate (vision mode, default: 1e-4)")
+    tp.add_argument("--batch-size", type=int, help="Batch size (vision mode, default: 256)")
+    tp.add_argument("--features-dim", type=int, help="Feature extractor dimension (vision mode, default: 512)")
+    tp.add_argument("--grayscale", action="store_true", help="Use grayscale instead of RGB (vision mode)")
+    tp.add_argument("--frame-stack", type=int, help="Number of frames to stack (vision mode, default: 1)")
     tp.set_defaults(func=cmd_train)
 
     # evaluate
